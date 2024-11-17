@@ -1,0 +1,69 @@
+#pragma kernel GenerateSpawnData
+#pragma kernel UpdateDropletPosition
+
+RWStructuredBuffer<float3> dropletsPosition;  // Buffer que almacena todas las gotas
+RWStructuredBuffer<float3> dropletsVelocity;
+
+float2 spawnSize;
+float3 limitSize;
+float3 spawnCentre;
+float initialVelocityMagnitude;
+uint numDroplets;
+float gravity;
+float deltaTime;
+
+[numthreads(16, 16, 1)]
+void GenerateSpawnData(uint3 id : SV_DispatchThreadID)
+{
+    uint index = id.x + id.y * 16 * 16;
+    if (index >= numDroplets)
+        return;
+
+    int numX = (int)ceil(sqrt(spawnSize.x / spawnSize.y * numDroplets));
+    int numY = (int)ceil(numDroplets / (float)numX);
+
+    int x = index % numX;
+    int y = index / numX;
+
+    float tx = numX <= 1 ? 0.5f : x / (float)(numX - 1);
+    float ty = numY <= 1 ? 0.5f : y / (float)(numY - 1);
+
+    float3 position = float3((tx - 0.5f) * spawnSize.x, (ty - 0.5f) * spawnSize.y, 0) + spawnCentre;
+    float3 velocity = float3(0, -1, 0) * initialVelocityMagnitude;
+
+    dropletsPosition[index] = position;  // Asignar la posición y la velocidad de la gota al buffer
+    dropletsVelocity[index] = velocity;
+}
+
+void CheckLimits(uint particleIndex)
+{
+	float2 pos = dropletsPosition[particleIndex];
+	float2 vel = dropletsVelocity[particleIndex];
+    float collisionDamping = 0.8;
+
+	// Keep particle inside bounds
+	const float2 halfSize = limitSize * 0.5;
+	float2 edgeDst = halfSize - abs(pos);
+
+	if (edgeDst.x <= 0)
+	{
+		pos.x = halfSize.x * sign(pos.x);
+		vel.x *= -1 * collisionDamping;
+	}
+	if (edgeDst.y <= 0)
+	{
+		pos.y = halfSize.y * sign(pos.y);
+		vel.y *= -1 * collisionDamping;
+	}
+}
+
+[numthreads(16, 1, 1)]
+void UpdateDropletPosition(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= numDroplets) return;
+    dropletsPosition[id.x] += dropletsVelocity[id.x] * deltaTime;
+    dropletsVelocity[id.x].y -= gravity*deltaTime;
+    CheckLimits(id.x);
+}
+
+
