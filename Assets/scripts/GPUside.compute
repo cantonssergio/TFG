@@ -44,7 +44,7 @@ void GenerateSpawnData(uint3 id : SV_DispatchThreadID)
     float ty = numY <= 1 ? 0.5f : y / (float)(numY - 1);
 
     float3 position = float3((tx - 0.5f) * spawnSize.x, (ty - 0.5f) * spawnSize.y, 0) + spawnCentre;
-    float3 velocity = float3(0, -1, 0) * initialVelocityMagnitude;
+    float3 velocity = float3(0, 0, 0) ;//* initialVelocityMagnitude;
 
     dropletsPosition[index] = position;
     dropletsVelocity[index] = velocity;
@@ -82,9 +82,9 @@ float SpikyKernelPow2(float distance)
 float SpikyKernelPow3(float distance)
 {
     if (distance < smoothingRadius){
-	float k = 15 / (pi * pow(smoothingRadius, 6));
-	float v = smoothingRadius - distance;
-	return v * v * v * k;
+	    float k = 15 / (pi * pow(smoothingRadius, 6));
+	    float v = smoothingRadius - distance;
+	    return v * v * v * k;
     } else return 0;
 }
 
@@ -178,7 +178,7 @@ void CheckLimits(uint dropletIndex)
 }
 
 
-[numthreads(64, 1, 1)]
+[numthreads(16, 1, 1)]
 void CalcDensity(uint3 id : SV_DispatchThreadID)
 {
     if (id.x >= numDroplets) return;
@@ -212,7 +212,7 @@ float NearPressureFromDensity(float nearDensity)
 	return nearDensity * nearPressureMultiplier;
 }
 
-[numthreads(64, 1, 1)]
+[numthreads(16, 1, 1)]
 void CalcPressure(uint3 id : SV_DispatchThreadID)
 {
     float3 pForce = float3(0, 0, 0);
@@ -238,7 +238,7 @@ void CalcPressure(uint3 id : SV_DispatchThreadID)
 
                 float sharedPressure = (pressure + pressureSecondDropplet) / 2.0;
                 float sharedNearPressure = (nearDensity + pressureNearSecondDroplet) / 2.0;
-                
+
                 pForce += DensityDerivativeKernel(dist) * direction * sharedPressure / densitySecondDropplet;
                 pForce += NearDensityDerivativeKernel(dist) * direction * sharedNearPressure / densityNearSecondDropplet;
             }
@@ -247,7 +247,7 @@ void CalcPressure(uint3 id : SV_DispatchThreadID)
     dropletsVelocity[id.x] += (pForce / density) * deltaTime; 
 }
 
-[numthreads(64, 1, 1)]
+[numthreads(16, 1, 1)]
 void CalcViscosity(uint3 id : SV_DispatchThreadID){
     float3 vForce = float3(0,0,0);
     for (int i = 0; i < numDroplets; i++)
@@ -265,13 +265,36 @@ void CalcViscosity(uint3 id : SV_DispatchThreadID){
    dropletsVelocity[id.x] += vForce * viscosityMultiplier*deltaTime;
 
 }
+float rand(uint seed) {
+    return frac(sin(seed * 78.233f) * 43758.5453f);
+}
 
-[numthreads(64, 1, 1)]
+[numthreads(16, 1, 1)]
 void UpdateDropletPosition(uint3 id : SV_DispatchThreadID)
 {
-    if (id.x < numDroplets){
+    if (id.x < numDroplets)
+    {
         dropletsVelocity[id.x] -= float3(0, gravity, 0) * deltaTime;
         dropletsPosition[id.x] += dropletsVelocity[id.x] * deltaTime;
+
+        if (any(isnan(dropletsPosition[id.x])))
+        {
+            float3 halfSize = limitSize * 0.5f;
+            float3 minBounds = spawnCentre - halfSize;
+            float3 maxBounds = spawnCentre + halfSize;
+
+            dropletsPosition[id.x] = float3(
+                lerp(minBounds.x, maxBounds.x, rand(id.x * 123u)),
+                lerp(minBounds.y, maxBounds.y, rand(id.x * 456u)),
+                lerp(minBounds.z, maxBounds.z, rand(id.x * 789u))
+            );
+            dropletsVelocity[id.x] = float3(0, -initialVelocityMagnitude, 0);
+        }
+
         CheckLimits(id.x);
     }
 }
+
+
+
+

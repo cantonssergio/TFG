@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -48,7 +47,7 @@ public class Simulation : MonoBehaviour
         dropletComputeShader.SetFloat("targetDensity", density);
         dropletComputeShader.SetFloat("smoothingRadius", smoothingRadius);
         dropletComputeShader.SetFloat("collisionDampling", collisionDampling);
-
+        dropletComputeShader.SetFloat("nearPressureMultiplier", nearPressureMultiplier);
         dropletComputeShader.SetVector("limitSize", limitSize);
         dropletComputeShader.SetFloat("pressureMultiplier", pressureMultiplier);
         dropletComputeShader.SetFloat("viscosityMultiplier", viscosityMultiplier);
@@ -76,26 +75,6 @@ public class Simulation : MonoBehaviour
 
     private void InitializeDroplets()
     {
-        /*
-        int kernelPositionIndex = dropletComputeShader.FindKernel("GenerateSpawnData");
-        //int kerneVelocitylIndex = dropletComputeShader.FindKernel("");
-
-
-        dropletComputeShader.SetInt("numDroplets", numDroplets);
-        dropletComputeShader.SetFloat("initialVelocityMagnitude", initialVelocityMagnitude);
-        dropletComputeShader.SetFloat("gravity", gravity);
-        dropletComputeShader.SetFloat("targetDensity", density);
-        dropletComputeShader.SetFloat("smoothingRadius", smoothingRadius);
-        dropletComputeShader.SetFloats("spawnSize", spawnSize.x, spawnSize.y);
-        dropletComputeShader.SetFloats("spawnCentre", spawnCentre.x, spawnCentre.y, spawnCentre.z);
-        dropletComputeShader.SetBuffer(kernelPositionIndex, "dropletsPosition", dropletPositionBuffer);
-        dropletComputeShader.SetBuffer(kernelPositionIndex, "dropletsVelocity", dropletVelocityBuffer);
-
-        int threadGroupsX = Mathf.CeilToInt(numDroplets / 16.0f);
-        dropletComputeShader.Dispatch(kernelPositionIndex, threadGroupsX, 1, 1);
-
-        dropletsPosition = new Vector3[numDroplets];
-        dropletPositionBuffer.GetData(dropletsPosition);*/
         int kernelSpawnIndex = dropletComputeShader.FindKernel("GenerateSpawnData");
 
 
@@ -138,7 +117,7 @@ public class Simulation : MonoBehaviour
         dropletComputeShader.SetBuffer(kernelDensityPressureIndex, "dropletsPosition", dropletPositionBuffer);
         dropletComputeShader.SetBuffer(kernelDensityPressureIndex, "dropletsVelocity", dropletVelocityBuffer);
         dropletComputeShader.SetBuffer(kernelDensityPressureIndex, "dropletsDensity", dropletDensityBuffer);
-        dropletComputeShader.SetBuffer(kernelDensityPressureIndex, "dropletsNearDensity", dropletDensityBuffer);
+        dropletComputeShader.SetBuffer(kernelDensityPressureIndex, "dropletsNearDensity", dropletsNearDensity);
 
         int threadGroupsX = Mathf.CeilToInt(numDroplets / 16.0f);
         dropletComputeShader.Dispatch(kernelDensityPressureIndex, threadGroupsX, 1, 1);
