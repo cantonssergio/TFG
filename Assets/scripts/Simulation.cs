@@ -14,7 +14,8 @@ public class Simulation : MonoBehaviour
     public float pressureMultiplier;
     public float nearPressureMultiplier;
     public float viscosityMultiplier;
-    public Vector2 spawnSize; // Tamaño del área de generación de gotas
+    public float maxSpeed;
+    public Vector3 spawnSize; // Tamaño del área de generación de gotas
     public Vector3 spawnCentre; // Centro del área de generación de gotas
 
     public Vector3 limitSize;
@@ -51,6 +52,7 @@ public class Simulation : MonoBehaviour
         dropletComputeShader.SetVector("limitSize", limitSize);
         dropletComputeShader.SetFloat("pressureMultiplier", pressureMultiplier);
         dropletComputeShader.SetFloat("viscosityMultiplier", viscosityMultiplier);
+        // dropletComputeShader.SetFloat("maxSpeed", maxSpeed);
 
     }
 
@@ -79,7 +81,7 @@ public class Simulation : MonoBehaviour
 
 
         dropletComputeShader.SetInt("numDroplets", numDroplets);
-        dropletComputeShader.SetFloats("spawnSize", spawnSize.x, spawnSize.y);
+        dropletComputeShader.SetFloats("spawnSize", spawnSize.x, spawnSize.y, spawnSize.z);
         dropletComputeShader.SetFloats("spawnCentre", spawnCentre.x, spawnCentre.y, spawnCentre.z);
         dropletComputeShader.SetBuffer(kernelSpawnIndex, "dropletsPosition", dropletPositionBuffer);
         dropletComputeShader.SetBuffer(kernelSpawnIndex, "dropletsVelocity", dropletVelocityBuffer);
@@ -178,7 +180,7 @@ public class Simulation : MonoBehaviour
     {
         Gizmos.color = Color.cyan;
         Vector3 center = spawnCentre;
-        Vector3 size = new Vector3(limitSize.x, limitSize.y, 0.1f);
+        Vector3 size = new Vector3(limitSize.x, limitSize.y, limitSize.z);
 
         Gizmos.DrawWireCube(center, size);
     }
