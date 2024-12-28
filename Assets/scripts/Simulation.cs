@@ -6,10 +6,10 @@ public class Simulation : MonoBehaviour
     [Header("Settings")]
     public int numDroplets;
 
-    public float timeStep;
+    [Range(0.01f, 0.001f)] public float timeStep;
     public float gravity;
     public float density;
-    public float collisionDampling;
+    [Range(0, 1)] public float collisionDampling;
     public float smoothingRadius;
     public float pressureMultiplier;
     public float nearPressureMultiplier;
@@ -52,7 +52,7 @@ public class Simulation : MonoBehaviour
         dropletComputeShader.SetVector("limitSize", limitSize);
         dropletComputeShader.SetFloat("pressureMultiplier", pressureMultiplier);
         dropletComputeShader.SetFloat("viscosityMultiplier", viscosityMultiplier);
-        // dropletComputeShader.SetFloat("maxSpeed", maxSpeed);
+        dropletComputeShader.SetFloat("maxSpeed", maxSpeed);
 
     }
 
@@ -63,7 +63,6 @@ public class Simulation : MonoBehaviour
         dropletVelocityBuffer = new ComputeBuffer(numDroplets, sizeof(float) * 3);
         dropletDensityBuffer = new ComputeBuffer(numDroplets, sizeof(float));
         dropletsNearDensity = new ComputeBuffer(numDroplets, sizeof(float));
-
 
         dropletInstances = new List<GameObject>();
         for (int i = 0; i < numDroplets; i++)
@@ -161,19 +160,27 @@ public class Simulation : MonoBehaviour
         dropletComputeShader.SetBuffer(kernelPositionIndex, "dropletsVelocity", dropletVelocityBuffer);
         dropletComputeShader.SetFloat("deltaTime", timeStep);
 
-        // Ejecutar el Compute Shader para actualizar las posiciones de las gotas
         int threadGroupsX = Mathf.CeilToInt(numDroplets / 16.0f);
         dropletComputeShader.Dispatch(kernelPositionIndex, threadGroupsX, 1, 1);
 
-        // Leer los datos actualizados desde la GPU
         dropletPositionBuffer.GetData(dropletsPosition);
 
-
-        // Actualizar las posiciones de las instancias visuales de las gotas
         for (int i = 0; i < numDroplets; i++)
         {
-            dropletInstances[i].transform.position = dropletsPosition[i];
+            Vector3 halfSize = limitSize * 0.5f;
+            Vector3 minBounds = spawnCentre - halfSize;
+            Vector3 maxBounds = spawnCentre + halfSize;
+
+            Vector3 clampedPosition = new Vector3(
+                Mathf.Clamp(dropletsPosition[i].x, minBounds.x, maxBounds.x),
+                Mathf.Clamp(dropletsPosition[i].y, minBounds.y, maxBounds.y),
+                Mathf.Clamp(dropletsPosition[i].z, minBounds.z, maxBounds.z)
+            );
+
+            dropletInstances[i].transform.position = clampedPosition;
+
         }
+
     }
 
     private void OnDrawGizmos()

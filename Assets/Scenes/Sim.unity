@@ -337,14 +337,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 450a667b2a5a8f54cb48a76c5608a937, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  numDroplets: 7
+  numDroplets: 2048
   timeStep: 0.01
   gravity: 10
-  density: 65
+  density: 55
   collisionDampling: 0.95
   smoothingRadius: 0.7
   pressureMultiplier: 500
-  nearPressureMultiplier: 15
+  nearPressureMultiplier: 50
   viscosityMultiplier: 0.06
   maxSpeed: 100
   spawnSize: {x: 8, y: 8, z: 0}

@@ -74,7 +74,7 @@ void GenerateSpawnData(uint3 id : SV_DispatchThreadID)
 float Poly6Kernel(float distance)
 {
     if (distance <= smoothingRadius){
-        float k = 315 / (64 * pi * pow(abs(smoothingRadius), 9)); //4/(pi*pow(smoothingRadius, 8));
+        float k = 315 / (64 * pi * pow(abs(smoothingRadius), 9));
 	    float v = smoothingRadius * smoothingRadius - distance * distance;
 		return v * v * v * k;
     } else return 0;
@@ -83,7 +83,7 @@ float Poly6Kernel(float distance)
 float DerivativePoly6Kernel(float distance)
 {
     if (distance <= smoothingRadius){
-        float k = -945/(32*pi*pow(abs(smoothingRadius),9));
+        float k = -(945*distance)/(32*pi*pow(abs(smoothingRadius),9));
         float v = smoothingRadius*smoothingRadius - distance*distance;
         return k*v*v;
     } else return 0;
@@ -91,18 +91,17 @@ float DerivativePoly6Kernel(float distance)
 
 float SpikyKernel(float distance)
 {
-    if (distance < smoothingRadius){
+    if (distance <= smoothingRadius){
 
-        float r = 2*distance/smoothingRadius -1;
         float k = 15 / (pi * pow(abs(smoothingRadius), 6));
-        float v = smoothingRadius - r;
+        float v = smoothingRadius - distance;
         return k * v * v * v;
     } else return 0;
 }
 
 float SpikyKernelPow2(float distance)
 {
-    if (distance < smoothingRadius){
+    if (distance <= smoothingRadius){
 		float k = 15 / (2 * pi * pow(abs(smoothingRadius), 5));
 		float v = smoothingRadius - distance;
 		return v * v * k;
@@ -111,7 +110,7 @@ float SpikyKernelPow2(float distance)
 
 float SpikyKernelPow3(float distance)
 {
-    if (distance < smoothingRadius){
+    if (distance <= smoothingRadius){
 	    float k = 15 / (pi * pow(abs(smoothingRadius), 6));
 	    float v = smoothingRadius - distance;
 	    return v * v * v * k;
@@ -121,7 +120,7 @@ float SpikyKernelPow3(float distance)
 float SpikyKernelDerivative(float distance)
 {
     
-    if (distance < smoothingRadius) return 0.0f;
+    if (distance <= smoothingRadius) return 0.0f;
     float r = 2*distance/smoothingRadius -1;
     float k = 15 / (pi * pow(abs(smoothingRadius), 6));
     float v = smoothingRadius - r;
@@ -130,7 +129,7 @@ float SpikyKernelDerivative(float distance)
 
 float DerivativeSpikyPow2(float distance)
 {
-    if (distance < smoothingRadius){
+    if (distance <= smoothingRadius){
         float k = 15 / (pow(abs(smoothingRadius), 5) * pi);
         float v = smoothingRadius - distance;
         return -v * k;
@@ -139,7 +138,7 @@ float DerivativeSpikyPow2(float distance)
 
 float DerivativeSpikyPow3(float distance)
 {
-    if (distance < smoothingRadius){
+    if (distance <= smoothingRadius){
         float k = 45 / (pow(abs(smoothingRadius), 6) * pi);
         float v = smoothingRadius - distance;
         return -v * v * k;
@@ -148,7 +147,7 @@ float DerivativeSpikyPow3(float distance)
 }
 
 float vkernel(float distance){
-    if (distance < smoothingRadius){
+    if (distance <= smoothingRadius){
 
         float k = 15 / (2 * pi * pow(abs(smoothingRadius), 3));
         return - pow(abs(distance), 3)/2*pow(abs(smoothingRadius),3) + distance*distance/(smoothingRadius*smoothingRadius) + smoothingRadius/(2*distance)-1;
@@ -347,11 +346,10 @@ void UpdateDropletPosition(uint3 id : SV_DispatchThreadID)
             );
             dropletsVelocity[id.x] = float3(0, -1, 0);
         }
-        /*
+        
         if (length(dropletsVelocity[id.x]) >= maxSpeed){
             dropletsVelocity[id.x] = normalize(dropletsVelocity[id.x])*maxSpeed;
-        }*/
-
+        }
         CheckLimits(id.x);
     }
 }
