@@ -240,11 +240,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9ec03ece15b650e4797793c5e07dec56, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  numDroplets: 4000
+  numDroplets: 2000
   collisionDampling: 0.95
-  timeStep: 0.001
-  smoothingRadius: 1
+  timeStep: 0.01
+  smoothingRadius: 0.7
   maxSpeed: 100
+  maxForce: 2000
   spawnSize: {x: 8, y: 8, z: 0}
   spawnCentre: {x: 10.4, y: 9.94, z: 1}
   limitSize: {x: 18, y: 9.6, z: 0.1}

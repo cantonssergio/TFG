@@ -340,17 +340,17 @@ MonoBehaviour:
   numDroplets: 2048
   timeStep: 0.01
   gravity: 10
-  density: 55
+  density: 65
+  maxForce: 2000
   collisionDampling: 0.95
-  smoothingRadius: 0.7
+  smoothingRadius: 0.5
   pressureMultiplier: 500
   nearPressureMultiplier: 50
-  viscosityMultiplier: 0.06
+  viscosityMultiplier: 0.4
   maxSpeed: 100
   spawnSize: {x: 8, y: 8, z: 0}
   spawnCentre: {x: 10.4, y: 9.94, z: 1}
   limitSize: {x: 18, y: 9.6, z: 0.1}
-  initialVelocityMagnitude: 1
   dropletComputeShader: {fileID: 7200000, guid: ab2f642e0d5637b43b828649c3797b15, type: 3}
   dropletPrefab: {fileID: 8751514869904617279, guid: 86dc28332ac6ebe4b982131f15908e74, type: 3}
 --- !u!4 &1796714957

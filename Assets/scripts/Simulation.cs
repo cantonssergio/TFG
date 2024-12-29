@@ -9,6 +9,7 @@ public class Simulation : MonoBehaviour
     [Range(0.01f, 0.001f)] public float timeStep;
     public float gravity;
     public float density;
+    public float maxForce;
     [Range(0, 1)] public float collisionDampling;
     public float smoothingRadius;
     public float pressureMultiplier;
@@ -52,6 +53,7 @@ public class Simulation : MonoBehaviour
         dropletComputeShader.SetFloat("pressureMultiplier", pressureMultiplier);
         dropletComputeShader.SetFloat("viscosityMultiplier", viscosityMultiplier);
         dropletComputeShader.SetFloat("maxSpeed", maxSpeed);
+        dropletComputeShader.SetFloat("maxForce", maxForce);
 
     }
 
