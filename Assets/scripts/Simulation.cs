@@ -19,7 +19,6 @@ public class Simulation : MonoBehaviour
     public Vector3 spawnCentre; // Centro del área de generación de gotas
 
     public Vector3 limitSize;
-    public float initialVelocityMagnitude; // Magnitud de la velocidad inicial de cada gota
 
     public ComputeShader dropletComputeShader;
     public GameObject dropletPrefab; // Prefab para representar visualmente cada gota
@@ -63,6 +62,9 @@ public class Simulation : MonoBehaviour
         dropletVelocityBuffer = new ComputeBuffer(numDroplets, sizeof(float) * 3);
         dropletDensityBuffer = new ComputeBuffer(numDroplets, sizeof(float));
         dropletsNearDensity = new ComputeBuffer(numDroplets, sizeof(float));
+
+        dropletComputeShader.SetInt("startIndex", 0);
+        dropletComputeShader.SetInt("endIndex", numDroplets);
 
         dropletInstances = new List<GameObject>();
         for (int i = 0; i < numDroplets; i++)

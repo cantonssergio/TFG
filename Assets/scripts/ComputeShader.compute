@@ -26,6 +26,9 @@ float deltaTime;
 float collisionDampling;
 float viscosityMultiplier;
 
+uint startIndex;
+uint endIndex;
+
 
 static const float pi = 3.14159265359f;
 
@@ -237,6 +240,7 @@ void CheckLimits(uint dropletIndex)
 [numthreads(64, 1, 1)]
 void CalcDensity(uint3 id : SV_DispatchThreadID)
 {
+    if (id.x< startIndex || id.x >= endIndex) return;
     if (id.x >= numDroplets) return;
 
     float3 droplet = dropletsPosition[id.x];
@@ -271,6 +275,7 @@ float NearPressureFromDensity(float nearDensity)
 [numthreads(64, 1, 1)]
 void CalcPressure(uint3 id : SV_DispatchThreadID)
 {
+    if (id.x< startIndex || id.x >= endIndex) return;
     float3 pForce = float3(0, 0, 0);
     float density = dropletsDensity[id.x];
     float pressure = PressureFromDensity(density);
@@ -307,6 +312,7 @@ void CalcPressure(uint3 id : SV_DispatchThreadID)
 
 [numthreads(64, 1, 1)]
 void CalcViscosity(uint3 id : SV_DispatchThreadID){
+    if (id.x< startIndex || id.x >= endIndex) return;
     float3 vForce = float3(0,0,0);
     for (uint i = 0; i < numDroplets; i++)
     {
@@ -328,6 +334,7 @@ void CalcViscosity(uint3 id : SV_DispatchThreadID){
 [numthreads(64  , 1, 1)]
 void UpdateDropletPosition(uint3 id : SV_DispatchThreadID)
 {
+    if (id.x< startIndex || id.x >= endIndex) return;
     if (id.x < numDroplets)
     {
         dropletsVelocity[id.x] -= float3(0, gravity, 0) * deltaTime;
