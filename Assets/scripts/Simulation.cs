@@ -32,6 +32,8 @@ public class Simulation : MonoBehaviour
     private Vector3[] dropletsPosition;
     private List<GameObject> dropletInstances;
 
+    private bool isPaused;
+
 
     void simulate()
     {
@@ -64,6 +66,7 @@ public class Simulation : MonoBehaviour
         dropletVelocityBuffer = new ComputeBuffer(numDroplets, sizeof(float) * 3);
         dropletDensityBuffer = new ComputeBuffer(numDroplets, sizeof(float));
         dropletsNearDensity = new ComputeBuffer(numDroplets, sizeof(float));
+        isPaused = false;
 
         dropletComputeShader.SetInt("startIndex", 0);
         dropletComputeShader.SetInt("endIndex", numDroplets);
@@ -112,7 +115,20 @@ public class Simulation : MonoBehaviour
 
     void Update()
     {
-        simulate();
+        if (Input.GetKeyDown(KeyCode.R))
+        {
+            InitializeDroplets();
+        }
+
+        if (Input.GetKeyDown(KeyCode.Space))
+        {
+            isPaused = !isPaused;
+        }
+
+        if (!isPaused)
+        {
+            simulate();
+        }
     }
 
     private void CalcDensity()
