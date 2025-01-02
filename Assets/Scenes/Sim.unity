@@ -337,7 +337,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 450a667b2a5a8f54cb48a76c5608a937, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  dropletsBrush: 0
+  dropletsBrush: 4
   timeStep: 0.01
   gravity: 10
   density: 65
