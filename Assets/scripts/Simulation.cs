@@ -31,6 +31,7 @@ public class Simulation : MonoBehaviour
     private ComputeBuffer dropletDensityBuffer;
     private ComputeBuffer dropletsNearDensity;
     private Vector3[] dropletsPosition;
+    private Vector3[] dropletsVelocity;
     private List<GameObject> dropletInstances;
 
     private bool isPaused;
@@ -66,6 +67,11 @@ public class Simulation : MonoBehaviour
 
     void Start()
     {
+
+        Debug.Log("R: Reiniciar simulación");
+        Debug.Log("Click izquierdo: generar partículas");
+        Debug.Log("Click derecho: eliminar partículas");
+        Debug.Log("Espacio: pausar simulación");
 
         dropletPositionBuffer = new ComputeBuffer(MAXDROPLETS, sizeof(float) * 3);
         dropletVelocityBuffer = new ComputeBuffer(MAXDROPLETS, sizeof(float) * 3);
@@ -103,6 +109,7 @@ public class Simulation : MonoBehaviour
         dropletComputeShader.Dispatch(kernelSpawnIndex, threadGroupsX, 1, 1);
 
         dropletsPosition = new Vector3[MAXDROPLETS];
+        dropletsVelocity = new Vector3[MAXDROPLETS];
         dropletPositionBuffer.GetData(dropletsPosition);
 
         for (int i = 0; i < numDroplets; i++)
@@ -192,7 +199,6 @@ public class Simulation : MonoBehaviour
                 }
                 else
                 {
-                    Debug.LogWarning("Se alcanzó el límite de partículas definidas.");
                     break;
                 }
             }
@@ -214,11 +220,14 @@ public class Simulation : MonoBehaviour
                 dropletInstances.RemoveAt(i);
 
                 dropletPositionBuffer.GetData(dropletsPosition);
+                dropletVelocityBuffer.GetData(dropletsVelocity);
                 for (int j = i; j < numDroplets - 1; j++)
                 {
                     dropletsPosition[j] = dropletsPosition[j + 1];
+                    dropletsVelocity[j] = dropletsVelocity[j + 1];
                 }
                 dropletPositionBuffer.SetData(dropletsPosition);
+                dropletVelocityBuffer.SetData(dropletsVelocity);
                 numDroplets--;
             }
         }
