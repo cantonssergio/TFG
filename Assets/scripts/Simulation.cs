@@ -4,8 +4,9 @@ using UnityEngine;
 public class Simulation : MonoBehaviour
 {
     [Header("Settings")]
-    public int numDroplets;
-
+    [Range(4, 10)] public int dropletsBrush;
+    private int numDroplets;
+    const int MAXDROPLETS = 8100;
     [Range(0.01f, 0.001f)] public float timeStep;
     public float gravity;
     public float density;
@@ -33,6 +34,8 @@ public class Simulation : MonoBehaviour
     private List<GameObject> dropletInstances;
 
     private bool isPaused;
+    private float particleSpawnInterval = 0.1f;
+    private float lastSpawnTime = 0f;
 
 
     void simulate()
@@ -56,17 +59,21 @@ public class Simulation : MonoBehaviour
         dropletComputeShader.SetFloat("viscosityMultiplier", viscosityMultiplier);
         dropletComputeShader.SetFloat("maxSpeed", maxSpeed);
         dropletComputeShader.SetFloat("maxForce", maxForce);
+        dropletComputeShader.SetInt("numDroplets", numDroplets);
+        dropletComputeShader.SetInt("endIndex", numDroplets);
 
     }
 
     void Start()
     {
 
-        dropletPositionBuffer = new ComputeBuffer(numDroplets, sizeof(float) * 3);
-        dropletVelocityBuffer = new ComputeBuffer(numDroplets, sizeof(float) * 3);
-        dropletDensityBuffer = new ComputeBuffer(numDroplets, sizeof(float));
-        dropletsNearDensity = new ComputeBuffer(numDroplets, sizeof(float));
+        dropletPositionBuffer = new ComputeBuffer(MAXDROPLETS, sizeof(float) * 3);
+        dropletVelocityBuffer = new ComputeBuffer(MAXDROPLETS, sizeof(float) * 3);
+        dropletDensityBuffer = new ComputeBuffer(MAXDROPLETS, sizeof(float));
+        dropletsNearDensity = new ComputeBuffer(MAXDROPLETS, sizeof(float));
         isPaused = false;
+        numDroplets = 1225;
+        dropletsBrush = 4;
 
         dropletComputeShader.SetInt("startIndex", 0);
         dropletComputeShader.SetInt("endIndex", numDroplets);
@@ -95,7 +102,7 @@ public class Simulation : MonoBehaviour
         int threadGroupsX = Mathf.CeilToInt(numDroplets / 16.0f);
         dropletComputeShader.Dispatch(kernelSpawnIndex, threadGroupsX, 1, 1);
 
-        dropletsPosition = new Vector3[numDroplets];
+        dropletsPosition = new Vector3[MAXDROPLETS];
         dropletPositionBuffer.GetData(dropletsPosition);
 
         for (int i = 0; i < numDroplets; i++)
@@ -125,11 +132,98 @@ public class Simulation : MonoBehaviour
             isPaused = !isPaused;
         }
 
+        if (Input.GetMouseButton(0))
+        {
+            if (Time.time >= lastSpawnTime + particleSpawnInterval)
+            {
+                Vector3 mousePosition = GetMouseWorldPosition();
+                GenerateParticle(mousePosition, dropletsBrush);
+                lastSpawnTime = Time.time;
+            }
+        }
+        if (Input.GetMouseButton(1))
+        {
+            if (Time.time >= lastSpawnTime + particleSpawnInterval)
+            {
+                Vector3 mousePosition = GetMouseWorldPosition();
+                RemoveParticles(mousePosition);
+                lastSpawnTime = Time.time;
+            }
+        }
+
         if (!isPaused)
         {
             simulate();
         }
     }
+
+    private Vector3 GetMouseWorldPosition()
+    {
+        Vector3 mouseScreenPosition = Input.mousePosition;
+        mouseScreenPosition.z = spawnCentre.z - Camera.main.transform.position.z;
+
+        Vector3 worldPosition = Camera.main.ScreenToWorldPoint(mouseScreenPosition);
+        worldPosition.z = spawnCentre.z; // Forzar la posición z
+        return worldPosition;
+    }
+
+
+
+
+    private void GenerateParticle(Vector3 position, int amount)
+    {
+        for (int i = 0; i < amount; i++)
+        {
+            if (numDroplets < MAXDROPLETS)
+            {
+                Vector3 pos = new Vector3(
+                    position.x + Random.Range(-0.1f, 0.1f),
+                    position.y + Random.Range(-0.1f, 0.1f),
+                    position.z
+                );
+
+                GameObject dropletInstance = Instantiate(dropletPrefab, pos, Quaternion.identity);
+                dropletInstances.Add(dropletInstance);
+
+                if (numDroplets < dropletsPosition.Length)
+                {
+                    dropletsPosition[numDroplets] = pos;
+                    numDroplets++;
+                }
+                else
+                {
+                    Debug.LogWarning("Se alcanzó el límite de partículas definidas.");
+                    break;
+                }
+            }
+        }
+
+        // Escribir los datos actualizados en el ComputeBuffer
+        dropletPositionBuffer.SetData(dropletsPosition);
+    }
+
+
+    private void RemoveParticles(Vector3 position)
+    {
+        float removeRadius = dropletsBrush / 10f;
+        for (int i = dropletInstances.Count - 1; i >= 0; i--)
+        {
+            if (Vector3.Distance(dropletInstances[i].transform.position, position) < removeRadius && numDroplets > 0)
+            {
+                Destroy(dropletInstances[i]);
+                dropletInstances.RemoveAt(i);
+
+                dropletPositionBuffer.GetData(dropletsPosition);
+                for (int j = i; j < numDroplets - 1; j++)
+                {
+                    dropletsPosition[j] = dropletsPosition[j + 1];
+                }
+                dropletPositionBuffer.SetData(dropletsPosition);
+                numDroplets--;
+            }
+        }
+    }
+
 
     private void CalcDensity()
     {

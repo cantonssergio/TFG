@@ -73,7 +73,7 @@ void GenerateSpawnData(uint3 id : SV_DispatchThreadID)
 
 float Poly6Kernel(float distance)
 {
-    if (distance > smoothingRadius) return 0.0f;
+    if (distance > smoothingRadius || distance < 0.01f) return 0.0f;
     float k = 315.0f / (64.0f * pi * pow(smoothingRadius, 9));
     float v = smoothingRadius * smoothingRadius - distance * distance;
     return k * v * v * v;
@@ -89,7 +89,7 @@ float DerivativePoly6Kernel(float distance)
 
 float SpikyKernel(float distance)
 {
-    if (distance > smoothingRadius) return 0.0f;
+    if (distance > smoothingRadius || distance < 0.01f) return 0.0f;
     float k = 15.0f / (pi * pow(smoothingRadius, 6));
     float v = smoothingRadius - distance;
     return k * v * v * v;
@@ -135,7 +135,7 @@ void CalcDensity(uint3 id : SV_DispatchThreadID)
     if (id.x < startIndex || id.x >= endIndex || id.x >= numDroplets) return;
 
     float3 droplet = dropletsPosition[id.x];
-    float density = 0.0f;
+    float density = 0.01f; // Densidad mínima inicial
     float nearDensity = 0.0f;
 
     for (uint i = 0; i < numDroplets; i++) {
@@ -168,17 +168,23 @@ void CalcPressure(uint3 id : SV_DispatchThreadID)
         if (i == id.x) continue;
 
         float dist = distance(dropletsPosition[id.x], dropletsPosition[i]);
-        if (dist < smoothingRadius && dist > 0.0f) {
+        if (dist < smoothingRadius && dist > 0.01f) {
             float3 direction = (dropletsPosition[i] - dropletsPosition[id.x]) / dist;
-            float sharedPressure = (pressure + (dropletsDensity[i] - targetDensity) * pressureMultiplier) * 0.5f;
-            float sharedNearPressure = (nearPressure + dropletsNearDensity[i] * nearPressureMultiplier) * 0.5f;
+            float sharedPressure = clamp(
+                (pressure + (dropletsDensity[i] - targetDensity) * pressureMultiplier) * 0.5f,
+                -maxForce, maxForce
+            );
+            float sharedNearPressure = clamp(
+                (nearPressure + dropletsNearDensity[i] * nearPressureMultiplier) * 0.5f,
+                -maxForce, maxForce
+            );
 
             pForce += DerivativePoly6Kernel(dist) * direction * sharedPressure;
             pForce += DerivativeSpikyPow3(dist) * direction * sharedNearPressure;
         }
     }
 
-    if (density > 0.0f) {
+    if (density > 0.01f) {
         pForce = clamp(pForce, -maxForce, maxForce);
         dropletsVelocity[id.x] += (pForce / density) * deltaTime;
     }
@@ -194,11 +200,12 @@ void CalcViscosity(uint3 id : SV_DispatchThreadID)
         if (i == id.x) continue;
 
         float dist = distance(dropletsPosition[id.x], dropletsPosition[i]);
-        if (dist < smoothingRadius) {
+        if (dist < smoothingRadius && dist > 0.01f) {
             vForce += (dropletsVelocity[i] - dropletsVelocity[id.x]) * Poly6Kernel(dist);
         }
     }
 
+    vForce = clamp(vForce, -maxForce, maxForce);
     dropletsVelocity[id.x] += vForce * viscosityMultiplier * deltaTime;
 }
 
