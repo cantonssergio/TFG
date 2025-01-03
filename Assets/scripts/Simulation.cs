@@ -30,6 +30,8 @@ public class Simulation : MonoBehaviour
     private ComputeBuffer dropletVelocityBuffer;
     private ComputeBuffer dropletDensityBuffer;
     private ComputeBuffer dropletsNearDensity;
+    ComputeBuffer centersBuffer;
+    ComputeBuffer sizesBuffer;
     private Vector3[] dropletsPosition;
     private Vector3[] dropletsVelocity;
     private List<GameObject> dropletInstances;
@@ -46,6 +48,7 @@ public class Simulation : MonoBehaviour
         CalcViscosity();
         CalcPressure();
         UpdateDropletPositions();
+
     }
 
     void UpdateSettings()
@@ -77,6 +80,8 @@ public class Simulation : MonoBehaviour
         dropletVelocityBuffer = new ComputeBuffer(MAXDROPLETS, sizeof(float) * 3);
         dropletDensityBuffer = new ComputeBuffer(MAXDROPLETS, sizeof(float));
         dropletsNearDensity = new ComputeBuffer(MAXDROPLETS, sizeof(float));
+        centersBuffer = new ComputeBuffer(MAXDROPLETS, sizeof(float) * 3);
+        sizesBuffer = new ComputeBuffer(MAXDROPLETS, sizeof(float) * 3);
         isPaused = false;
         numDroplets = 1225;
         dropletsBrush = 4;
@@ -125,6 +130,8 @@ public class Simulation : MonoBehaviour
         dropletVelocityBuffer.Release();
         dropletDensityBuffer.Release();
         dropletsNearDensity.Release();
+        centersBuffer.Release();
+        sizesBuffer.Release();
     }
 
     void Update()
@@ -170,7 +177,7 @@ public class Simulation : MonoBehaviour
         mouseScreenPosition.z = spawnCentre.z - Camera.main.transform.position.z;
 
         Vector3 worldPosition = Camera.main.ScreenToWorldPoint(mouseScreenPosition);
-        worldPosition.z = spawnCentre.z; // Forzar la posición z
+        worldPosition.z = spawnCentre.z;
         return worldPosition;
     }
 
@@ -204,7 +211,6 @@ public class Simulation : MonoBehaviour
             }
         }
 
-        // Escribir los datos actualizados en el ComputeBuffer
         dropletPositionBuffer.SetData(dropletsPosition);
     }
 
@@ -284,6 +290,7 @@ public class Simulation : MonoBehaviour
         dropletComputeShader.SetFloat("deltaTime", timeStep);
 
         int threadGroupsX = Mathf.CeilToInt(numDroplets / 16.0f);
+        UpdateInteractableObjects(dropletComputeShader);
         dropletComputeShader.Dispatch(kernelPositionIndex, threadGroupsX, 1, 1);
 
         dropletPositionBuffer.GetData(dropletsPosition);
@@ -305,6 +312,31 @@ public class Simulation : MonoBehaviour
         }
 
     }
+
+    void UpdateInteractableObjects(ComputeShader computeShader)
+    {
+        int kernelInteractionIndex = dropletComputeShader.FindKernel("UpdateDropletPosition");
+        FluidInteractable[] interactables = FindObjectsByType<FluidInteractable>(FindObjectsSortMode.None);
+        List<Vector3> centers = new List<Vector3>();
+        List<Vector3> sizes = new List<Vector3>();
+
+        foreach (FluidInteractable obj in interactables)
+        {
+            Collider collider = obj.GetComponent<Collider>();
+            if (collider == null || !collider.enabled) continue;
+
+            Bounds bounds = collider.bounds;
+            centers.Add(bounds.center);
+            sizes.Add(bounds.size + obj.SizeOffset);
+        }
+        centersBuffer.SetData(centers);
+        sizesBuffer.SetData(sizes);
+
+        computeShader.SetBuffer(kernelInteractionIndex, "centers", centersBuffer);
+        computeShader.SetBuffer(kernelInteractionIndex, "sizes", sizesBuffer);
+        computeShader.SetInt("numInteractables", centers.Count);
+    }
+
 
     private void OnDrawGizmos()
     {

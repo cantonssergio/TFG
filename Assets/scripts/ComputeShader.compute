@@ -5,11 +5,14 @@
 #pragma kernel CalcPressure
 #pragma kernel CalcViscosity
 
-// Buffers que almacenan todas las gotas
 RWStructuredBuffer<float3> dropletsPosition;
 RWStructuredBuffer<float3> dropletsVelocity;
 RWStructuredBuffer<float> dropletsDensity;
 RWStructuredBuffer<float> dropletsNearDensity;
+
+StructuredBuffer<float3> centers;
+StructuredBuffer<float3> sizes;
+int numInteractables;
 
 float3 spawnSize;
 float3 limitSize;
@@ -209,6 +212,36 @@ void CalcViscosity(uint3 id : SV_DispatchThreadID)
     dropletsVelocity[id.x] += vForce * viscosityMultiplier * deltaTime;
 }
 
+bool IsInsideBox(float3 position, float3 center, float3 size)
+{
+    float3 halfSize = size * 0.5f;
+    return all(position >= center - halfSize - 0.01f) && all(position <= center + halfSize + 0.01f);
+}
+
+void CheckCollisionsWithObjects(uint id)
+{
+    float3 pos = dropletsPosition[id];
+    float3 vel = dropletsVelocity[id];
+
+    for (int i = 0; i < numInteractables; i++) {
+        if (IsInsideBox(pos, centers[i], sizes[i])) {
+            float3 penetration = pos - centers[i];
+            float3 normal = normalize(penetration);
+            float penetrationDepth = length(penetration) - length(sizes[i]) * 0.5f;
+
+            pos -= normal * penetrationDepth;
+            vel = -collisionDampling;
+
+            if (length(vel) > maxSpeed) {
+                vel = normalize(vel) * maxSpeed;
+            }
+        }
+    }
+
+    dropletsPosition[id] = pos;
+    dropletsVelocity[id] = vel;
+}
+
 [numthreads(64, 1, 1)]
 void UpdateDropletPosition(uint3 id : SV_DispatchThreadID)
 {
@@ -233,6 +266,6 @@ void UpdateDropletPosition(uint3 id : SV_DispatchThreadID)
     if (length(dropletsVelocity[id.x]) > maxSpeed) {
         dropletsVelocity[id.x] = normalize(dropletsVelocity[id.x]) * maxSpeed;
     }
-
+    CheckCollisionsWithObjects(id.x);
     CheckLimits(id.x);
 }
