@@ -1,0 +1,283 @@
+#pragma enable_d3d11_debug_symbols
+#pragma kernel GenerateSpawnData
+#pragma kernel UpdateDropletPosition
+#pragma kernel CalcDensity
+#pragma kernel CalcPressure
+#pragma kernel CalcViscosity
+
+RWStructuredBuffer<float3> dropletsPosition;
+RWStructuredBuffer<float3> dropletsVelocity;
+RWStructuredBuffer<float> dropletsDensity;
+RWStructuredBuffer<float> dropletsNearDensity;
+StructuredBuffer<float3> interactableVelocities;
+
+StructuredBuffer<float3> centers;
+StructuredBuffer<float3> sizes;
+int numInteractables;
+
+float3 spawnSize;
+float3 limitSize;
+float3 spawnCentre;
+float smoothingRadius;
+float initialVelocityMagnitude;
+float pressureMultiplier;
+uint numDroplets;
+float targetDensity;
+float nearPressureMultiplier;
+float gravity;
+float maxSpeed;
+float deltaTime;
+float collisionDampling;
+float viscosityMultiplier;
+float maxForce;
+
+uint startIndex;
+uint endIndex;
+
+static const float pi = 3.14159265359f;
+
+float rand(uint seed) {
+    return frac(sin(seed * 78.233f) * 43758.5453f);
+}
+
+[numthreads(16, 16, 1)]
+void GenerateSpawnData(uint3 id : SV_DispatchThreadID)
+{
+    uint index = id.x + id.y * 16 * 16;
+    if (index >= numDroplets)
+        return;
+
+    bool is2D = spawnSize.z <= 0.0f;
+
+    uint numX = (uint)ceil(pow(numDroplets, is2D ? 0.5f : 1.0f / 3.0f));
+    uint numY = numX;
+    uint numZ = is2D ? 1 : (uint)ceil(numDroplets / (float)(numX * numY));
+
+    uint z = index / (numX * numY);
+    uint remaining = index % (numX * numY);
+    uint y = remaining / numX;
+    uint x = remaining % numX;
+
+    if (!is2D && z >= numZ)
+        return;
+
+    float tx = (numX > 1) ? x / (float)(numX - 1) : 0.5f;
+    float ty = (numY > 1) ? y / (float)(numY - 1) : 0.5f;
+    float tz = is2D ? spawnCentre.z : ((numZ > 1) ? z / (float)(numZ - 1) : 0.5f);
+
+    float3 position = float3(
+        (tx - 0.5f) * spawnSize.x,
+        (ty - 0.5f) * spawnSize.y,
+        is2D ? spawnCentre.z : (tz - 0.5f) * spawnSize.z
+    ) + spawnCentre;
+
+    dropletsPosition[index] = position;
+    dropletsVelocity[index] = float3(0, 0, 0);
+}
+
+float Poly6Kernel(float distance)
+{
+    if (distance > smoothingRadius || distance < 0.01f) return 0.0f;
+    float k = 315.0f / (64.0f * pi * pow(smoothingRadius, 9));
+    float v = smoothingRadius * smoothingRadius - distance * distance;
+    return k * v * v * v;
+}
+
+float DerivativePoly6Kernel(float distance)
+{
+    if (distance > smoothingRadius || distance == 0.0f) return 0.0f;
+    float k = -945.0f / (32.0f * pi * pow(smoothingRadius, 9));
+    float v = smoothingRadius * smoothingRadius - distance * distance;
+    return k * v * v * distance;
+}
+
+float SpikyKernel(float distance)
+{
+    if (distance > smoothingRadius || distance < 0.01f) return 0.0f;
+    float k = 15.0f / (pi * pow(smoothingRadius, 6));
+    float v = smoothingRadius - distance;
+    return k * v * v * v;
+}
+
+float DerivativeSpikyPow3(float distance)
+{
+    if (distance > smoothingRadius || distance == 0.0f) return 0.0f;
+    float k = -45.0f / (pi * pow(smoothingRadius, 6));
+    float v = smoothingRadius - distance;
+    return k * v * v;
+}
+
+void CheckLimits(uint dropletIndex)
+{
+    float3 pos = dropletsPosition[dropletIndex];
+    float3 vel = dropletsVelocity[dropletIndex];
+
+    float3 minBounds = spawnCentre - (limitSize * 0.5f);
+    float3 maxBounds = spawnCentre + (limitSize * 0.5f);
+
+    const float epsilon = 0.0001f;
+
+    for (int axis = 0; axis < 3; ++axis) {
+        if (pos[axis] < minBounds[axis] - epsilon) {
+            float penetration = minBounds[axis] - pos[axis];
+            pos[axis] = minBounds[axis] + penetration;
+            vel[axis] *= -collisionDampling;
+        } else if (pos[axis] > maxBounds[axis] + epsilon) {
+            float penetration = pos[axis] - maxBounds[axis];
+            pos[axis] = maxBounds[axis] - penetration;
+            vel[axis] *= -collisionDampling;
+        }
+    }
+
+    dropletsPosition[dropletIndex] = pos;
+    dropletsVelocity[dropletIndex] = vel;
+}
+
+[numthreads(64, 1, 1)]
+void CalcDensity(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x < startIndex || id.x >= endIndex || id.x >= numDroplets) return;
+
+    float3 droplet = dropletsPosition[id.x];
+    float density = 0.01f; // Densidad mínima inicial
+    float nearDensity = 0.0f;
+
+    for (uint i = 0; i < numDroplets; i++) {
+        if (i == id.x) continue;
+
+        float dist = distance(droplet, dropletsPosition[i]);
+        if (dist < smoothingRadius) {
+            density += Poly6Kernel(dist);
+            nearDensity += SpikyKernel(dist);
+        }
+    }
+
+    dropletsDensity[id.x] = density;
+    dropletsNearDensity[id.x] = nearDensity;
+}
+
+[numthreads(64, 1, 1)]
+void CalcPressure(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x < startIndex || id.x >= endIndex || id.x >= numDroplets) return;
+
+    float3 pForce = float3(0, 0, 0);
+    float density = dropletsDensity[id.x];
+    float pressure = (density - targetDensity) * pressureMultiplier;
+
+    float nearDensity = dropletsNearDensity[id.x];
+    float nearPressure = nearDensity * nearPressureMultiplier;
+
+    for (uint i = 0; i < numDroplets; i++) {
+        if (i == id.x) continue;
+
+        float dist = distance(dropletsPosition[id.x], dropletsPosition[i]);
+        if (dist < smoothingRadius && dist > 0.01f) {
+            float3 direction = (dropletsPosition[i] - dropletsPosition[id.x]) / dist;
+            float sharedPressure = clamp(
+                (pressure + (dropletsDensity[i] - targetDensity) * pressureMultiplier) * 0.5f,
+                -maxForce, maxForce
+            );
+            float sharedNearPressure = clamp(
+                (nearPressure + dropletsNearDensity[i] * nearPressureMultiplier) * 0.5f,
+                -maxForce, maxForce
+            );
+
+            pForce += DerivativePoly6Kernel(dist) * direction * sharedPressure;
+            pForce += DerivativeSpikyPow3(dist) * direction * sharedNearPressure;
+        }
+    }
+
+    if (density > 0.01f) {
+        pForce = clamp(pForce, -maxForce, maxForce);
+        dropletsVelocity[id.x] += (pForce / density) * deltaTime;
+    }
+}
+
+[numthreads(64, 1, 1)]
+void CalcViscosity(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x < startIndex || id.x >= endIndex || id.x >= numDroplets) return;
+
+    float3 vForce = float3(0, 0, 0);
+    for (uint i = 0; i < numDroplets; i++) {
+        if (i == id.x) continue;
+
+        float dist = distance(dropletsPosition[id.x], dropletsPosition[i]);
+        if (dist < smoothingRadius && dist > 0.01f) {
+            vForce += (dropletsVelocity[i] - dropletsVelocity[id.x]) * Poly6Kernel(dist);
+        }
+    }
+
+    vForce = clamp(vForce, -maxForce, maxForce);
+    dropletsVelocity[id.x] += vForce * viscosityMultiplier * deltaTime;
+}
+
+void CheckCollisionsWithObjects(uint id)
+{
+    float3 pos = dropletsPosition[id];
+    float3 vel = dropletsVelocity[id];
+    float epsilon = 0.0001f;
+
+    for (int i = 0; i < numInteractables; i++) {
+        // Actualizar los límites del objeto dinámicamente
+        float3 objectVelocity = interactableVelocities[i]; // Velocidad del objeto
+        float3 updatedCenter = centers[i] + objectVelocity * deltaTime;
+        float3 minBounds = updatedCenter - (sizes[i] * 0.5f);
+        float3 maxBounds = updatedCenter + (sizes[i] * 0.5f);
+
+
+        // Verificar si la partícula está dentro del volumen del objeto
+        if (all(pos >= minBounds - epsilon) && all(pos <= maxBounds + epsilon)) {
+            for (int axis = 0; axis < 3; ++axis) {
+                float penetrationIn = 0.0f;
+
+                // Empujar la partícula hacia afuera del volumen
+                if (pos[axis] < (minBounds[axis] + maxBounds[axis]) * 0.5f) {
+                    penetrationIn = minBounds[axis] - pos[axis];
+                    pos[axis] = minBounds[axis] - penetrationIn;
+                } else {
+                    penetrationIn = pos[axis] - maxBounds[axis];
+                    pos[axis] = maxBounds[axis] + penetrationIn;
+                }
+
+                // Reflejar la velocidad y considerar el movimiento del objeto
+                vel[axis] = (vel[axis] - objectVelocity[axis]) * -collisionDampling + objectVelocity[axis];
+            }
+        }
+    }
+
+    dropletsPosition[id] = pos;
+    dropletsVelocity[id] = vel;
+}
+
+
+
+
+[numthreads(64, 1, 1)]
+void UpdateDropletPosition(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x < startIndex || id.x >= endIndex || id.x >= numDroplets) return;
+
+    dropletsVelocity[id.x] -= float3(0, gravity, 0) * deltaTime;
+    dropletsPosition[id.x] += dropletsVelocity[id.x] * deltaTime;
+
+    if (any(isnan(dropletsPosition[id.x]))) {
+        float3 halfSize = limitSize * 0.5f;
+        float3 minBounds = spawnCentre - halfSize;
+        float3 maxBounds = spawnCentre + halfSize;
+
+        dropletsPosition[id.x] = float3(
+            lerp(minBounds.x, maxBounds.x, rand(id.x * 123u)),
+            lerp(minBounds.y, maxBounds.y, rand(id.x * 456u)),
+            lerp(minBounds.z, maxBounds.z, rand(id.x * 789u))
+        );
+        dropletsVelocity[id.x] = float3(0, -1, 0);
+    }
+
+    if (length(dropletsVelocity[id.x]) > maxSpeed) {
+        dropletsVelocity[id.x] = normalize(dropletsVelocity[id.x]) * maxSpeed;
+    }
+    CheckLimits(id.x);
+    CheckCollisionsWithObjects(id.x);
+}

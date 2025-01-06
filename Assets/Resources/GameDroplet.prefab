@@ -13,7 +13,7 @@ GameObject:
   - component: {fileID: 5577924884350451145}
   - component: {fileID: 999103627668792828}
   m_Layer: 0
-  m_Name: Droplet Red
+  m_Name: GameDroplet
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
