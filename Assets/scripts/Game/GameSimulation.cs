@@ -329,7 +329,7 @@ public class GameSimulation : MonoBehaviour
         foreach (FluidInteractable obj in interactables)
         {
             Collider collider = obj.GetComponent<Collider>();
-            if (collider == null || !collider.enabled) continue;
+            if (collider == null) continue;
 
             Bounds bounds = collider.bounds;
             centers.Add(bounds.center);
