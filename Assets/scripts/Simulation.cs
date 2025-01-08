@@ -30,8 +30,9 @@ public class Simulation : MonoBehaviour
     private ComputeBuffer dropletVelocityBuffer;
     private ComputeBuffer dropletDensityBuffer;
     private ComputeBuffer dropletsNearDensity;
-    ComputeBuffer centersBuffer;
-    ComputeBuffer sizesBuffer;
+    private ComputeBuffer objectCentersBuffer;
+    private ComputeBuffer objectSizesBuffer;
+    private ComputeBuffer objectVelocitiesBuffer;
     private Vector3[] dropletsPosition;
     private Vector3[] dropletsVelocity;
     private List<GameObject> dropletInstances;
@@ -39,6 +40,8 @@ public class Simulation : MonoBehaviour
     private bool isPaused;
     private float particleSpawnInterval = 0.1f;
     private float lastSpawnTime = 0f;
+
+
 
 
     void simulate()
@@ -80,8 +83,9 @@ public class Simulation : MonoBehaviour
         dropletVelocityBuffer = new ComputeBuffer(MAXDROPLETS, sizeof(float) * 3);
         dropletDensityBuffer = new ComputeBuffer(MAXDROPLETS, sizeof(float));
         dropletsNearDensity = new ComputeBuffer(MAXDROPLETS, sizeof(float));
-        centersBuffer = new ComputeBuffer(MAXDROPLETS, sizeof(float) * 3);
-        sizesBuffer = new ComputeBuffer(MAXDROPLETS, sizeof(float) * 3);
+        objectCentersBuffer = new ComputeBuffer(10, sizeof(float) * 3);
+        objectSizesBuffer = new ComputeBuffer(10, sizeof(float) * 3);
+        objectVelocitiesBuffer = new ComputeBuffer(10, sizeof(float) * 3);
         isPaused = false;
         numDroplets = 1225;
         dropletsBrush = 4;
@@ -125,13 +129,13 @@ public class Simulation : MonoBehaviour
 
     void OnDestroy()
     {
-
         dropletPositionBuffer.Release();
         dropletVelocityBuffer.Release();
         dropletDensityBuffer.Release();
         dropletsNearDensity.Release();
-        centersBuffer.Release();
-        sizesBuffer.Release();
+        objectCentersBuffer.Release();
+        objectSizesBuffer.Release();
+        objectVelocitiesBuffer.Release();
     }
 
     void Update()
@@ -315,27 +319,46 @@ public class Simulation : MonoBehaviour
 
     void UpdateInteractableObjects(ComputeShader computeShader)
     {
-        int kernelInteractionIndex = dropletComputeShader.FindKernel("UpdateDropletPosition");
+        int kernelInteractionIndex = computeShader.FindKernel("UpdateDropletPosition");
         FluidInteractable[] interactables = FindObjectsByType<FluidInteractable>(FindObjectsSortMode.None);
+
         List<Vector3> centers = new List<Vector3>();
         List<Vector3> sizes = new List<Vector3>();
+        List<Vector3> velocities = new List<Vector3>();
 
         foreach (FluidInteractable obj in interactables)
         {
             Collider collider = obj.GetComponent<Collider>();
-            if (collider == null || !collider.enabled) continue;
+            if (collider == null) continue;
 
             Bounds bounds = collider.bounds;
             centers.Add(bounds.center);
             sizes.Add(bounds.size + obj.SizeOffset);
-        }
-        centersBuffer.SetData(centers);
-        sizesBuffer.SetData(sizes);
 
-        computeShader.SetBuffer(kernelInteractionIndex, "centers", centersBuffer);
-        computeShader.SetBuffer(kernelInteractionIndex, "sizes", sizesBuffer);
+            Rigidbody rb = obj.GetComponent<Rigidbody>();
+            if (rb != null)
+            {
+                velocities.Add(rb.linearVelocity);
+            }
+            else
+            {
+                velocities.Add(Vector3.zero);
+            }
+        }
+
+
+        // Actualizar los buffers de datos
+        objectCentersBuffer.SetData(centers);
+        objectSizesBuffer.SetData(sizes);
+        objectVelocitiesBuffer.SetData(velocities); // Buffer para velocidades
+
+        // Pasar los buffers al ComputeShader
+        computeShader.SetBuffer(kernelInteractionIndex, "centers", objectCentersBuffer);
+        computeShader.SetBuffer(kernelInteractionIndex, "sizes", objectSizesBuffer);
+        computeShader.SetBuffer(kernelInteractionIndex, "interactableVelocities", objectVelocitiesBuffer); // Pasar velocidades
         computeShader.SetInt("numInteractables", centers.Count);
     }
+
 
 
     private void OnDrawGizmos()

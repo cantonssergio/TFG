@@ -402,24 +402,24 @@ MonoBehaviour:
   m_GameObject: {fileID: 418397579}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 488d3d176b14a014bb930e28a802f33f, type: 3}
+  m_Script: {fileID: 11500000, guid: 450a667b2a5a8f54cb48a76c5608a937, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
   dropletsBrush: 4
-  timeStep: 0.01
+  timeStep: 0.001
   gravity: 10
-  density: 25
-  maxForce: 10000
+  density: 55
+  maxForce: 100000
   collisionDampling: 0.95
-  smoothingRadius: 0.9
+  smoothingRadius: 0.7
   pressureMultiplier: 10
   nearPressureMultiplier: 1
-  viscosityMultiplier: 0.1
+  viscosityMultiplier: 40
   maxSpeed: 100
-  spawnSize: {x: 13.3, y: 0.61, z: 0}
-  spawnCentre: {x: 0, y: 1.53, z: 0}
-  limitSize: {x: 19.5, y: 7.5, z: 0.1}
-  dropletComputeShader: {fileID: 7200000, guid: f647c443ca721dc469c0759892448c74, type: 3}
+  spawnSize: {x: 12.86, y: 4.92, z: 0}
+  spawnCentre: {x: 0, y: 2.4, z: 0}
+  limitSize: {x: 19.9, y: 8.39, z: 0.1}
+  dropletComputeShader: {fileID: 7200000, guid: ab2f642e0d5637b43b828649c3797b15, type: 3}
   dropletPrefab: {fileID: 8751514869904617279, guid: e9825cd75a21fb1488c4cfc0301b09a3, type: 3}
 --- !u!1 &667201237
 GameObject:
@@ -1185,7 +1185,7 @@ MonoBehaviour:
   rightBarrier: {fileID: 667201237}
   lowerLeftBarrier: {fileID: 32563783}
   lowerRightBarrier: {fileID: 1368209922}
-  moveSpeed: 5
+  moveSpeed: 7
   returnSpeed: 2
   epsilon: 0.01
   leftBarrierLimits: {x: -10, y: -9.5}
