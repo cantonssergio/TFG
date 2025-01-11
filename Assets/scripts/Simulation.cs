@@ -7,16 +7,16 @@ public class Simulation : MonoBehaviour
     [Range(4, 10)] public int dropletsBrush;
     private int numDroplets;
     const int MAXDROPLETS = 8100;
-    [Range(0.01f, 0.001f)] public float timeStep;
+    [Range(1f, 0.1f)] public float timeStep;
     public float gravity;
     public float density;
-    public float maxForce;
+    private float maxForce;
     [Range(0, 1)] public float collisionDampling;
     public float smoothingRadius;
     public float pressureMultiplier;
     public float nearPressureMultiplier;
     public float viscosityMultiplier;
-    public float maxSpeed;
+    private float maxSpeed;
     public Vector3 spawnSize; // Tamaño del área de generación de gotas
     public Vector3 spawnCentre; // Centro del área de generación de gotas
 
@@ -64,10 +64,10 @@ public class Simulation : MonoBehaviour
         dropletComputeShader.SetVector("limitSize", limitSize);
         dropletComputeShader.SetFloat("pressureMultiplier", pressureMultiplier);
         dropletComputeShader.SetFloat("viscosityMultiplier", viscosityMultiplier);
-        dropletComputeShader.SetFloat("maxSpeed", maxSpeed);
-        dropletComputeShader.SetFloat("maxForce", maxForce);
         dropletComputeShader.SetInt("numDroplets", numDroplets);
         dropletComputeShader.SetInt("endIndex", numDroplets);
+        dropletComputeShader.SetFloat("maxSpeed", maxSpeed);
+        dropletComputeShader.SetFloat("maxForce", maxForce);
 
     }
 
@@ -89,6 +89,8 @@ public class Simulation : MonoBehaviour
         isPaused = false;
         numDroplets = 1225;
         dropletsBrush = 4;
+        maxForce = 10000f;
+        maxSpeed = 100f;
 
         dropletComputeShader.SetInt("startIndex", 0);
         dropletComputeShader.SetInt("endIndex", numDroplets);
@@ -291,7 +293,7 @@ public class Simulation : MonoBehaviour
         dropletComputeShader.SetBuffer(kernelPositionIndex, "dropletsDensity", dropletDensityBuffer);
         dropletComputeShader.SetBuffer(kernelPositionIndex, "dropletsPosition", dropletPositionBuffer);
         dropletComputeShader.SetBuffer(kernelPositionIndex, "dropletsVelocity", dropletVelocityBuffer);
-        dropletComputeShader.SetFloat("deltaTime", timeStep);
+        dropletComputeShader.SetFloat("deltaTime", timeStep / 100f);
 
         int threadGroupsX = Mathf.CeilToInt(numDroplets / 16.0f);
         UpdateInteractableObjects(dropletComputeShader);

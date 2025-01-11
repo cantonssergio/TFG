@@ -319,7 +319,7 @@ Transform:
   m_GameObject: {fileID: 926011986}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -6.2716317, y: 9.641254, z: 1.213}
+  m_LocalPosition: {x: -0.67, y: 9.641254, z: 1.213}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -424,7 +424,7 @@ Transform:
   m_GameObject: {fileID: 963194225}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 10.33, y: 9.9, z: -74.39}
+  m_LocalPosition: {x: 10, y: 10, z: -74.39}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -460,19 +460,17 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   dropletsBrush: 4
-  timeStep: 0.01
+  timeStep: 1
   gravity: 10
   density: 55
-  maxForce: 10000
   collisionDampling: 0.95
   smoothingRadius: 0.7
   pressureMultiplier: 10
   nearPressureMultiplier: 1
   viscosityMultiplier: 40
-  maxSpeed: 100
   spawnSize: {x: 8, y: 8, z: 0}
-  spawnCentre: {x: 10.4, y: 9.94, z: 1}
-  limitSize: {x: 18, y: 9.6, z: 0.1}
+  spawnCentre: {x: 10, y: 10, z: 1}
+  limitSize: {x: 18, y: 10, z: 0.1}
   dropletComputeShader: {fileID: 7200000, guid: ab2f642e0d5637b43b828649c3797b15, type: 3}
   dropletPrefab: {fileID: 8751514869904617279, guid: 86dc28332ac6ebe4b982131f15908e74, type: 3}
 --- !u!4 &1796714957

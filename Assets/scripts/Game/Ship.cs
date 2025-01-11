@@ -7,42 +7,62 @@ public class Ship : MonoBehaviour
 
     private Rigidbody rb;
     private float elapsedTime = 0.0f;
-    private bool isMoving = false;
+    private Vector3 initialPosition;
+    private Quaternion initialRotation;
+
 
     void Start()
     {
         rb = GetComponent<Rigidbody>();
-
         if (rb == null)
         {
             Debug.LogError("Rigidbody component is missing on the Ship.");
             return;
         }
+        initialPosition = transform.position;
+        initialRotation = transform.rotation;
 
         rb.useGravity = false;
         rb.linearVelocity = Vector3.zero;
+        rb.angularVelocity = Vector3.zero;
+        rb.freezeRotation = true;
+
     }
 
     void Update()
     {
         elapsedTime += Time.deltaTime;
 
-        if (!isMoving && elapsedTime >= initialHoverTime)
+        if (elapsedTime >= initialHoverTime)
         {
-            isMoving = true;
             rb.useGravity = true;
+            rb.freezeRotation = false;
+            rb.constraints = RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationY | RigidbodyConstraints.FreezePositionZ;
         }
-        if (isMoving)
+
+        if (Input.GetKeyDown(KeyCode.R))
         {
-            rb.linearVelocity = new Vector3(speed, 0, 0);
+            ResetShip();
         }
+    }
+    private void ResetShip()
+    {
+        // Restaura la posición inicial
+        transform.position = initialPosition;
+
+        // Restaura la rotación inicial
+        transform.rotation = initialRotation;
+
+        // Reinicia el tiempo transcurrido
+        elapsedTime = 0.0f;
+
+        // Desactiva la gravedad y velocidades
+        rb.useGravity = false;
+        rb.linearVelocity = Vector3.zero; // Velocidad lineal a 0
+        rb.angularVelocity = Vector3.zero; // Velocidad angular a 0
+
+        // Bloquea la rotación mientras está en espera
+        rb.freezeRotation = true;
     }
 
-    void OnCollisionEnter(Collision collision)
-    {
-        if (collision.gameObject.GetComponent<FluidInteractable>() != null)
-        {
-            Destroy(gameObject);
-        }
-    }
 }
