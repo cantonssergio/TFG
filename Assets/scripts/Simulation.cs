@@ -7,7 +7,7 @@ public class Simulation : MonoBehaviour
     [Range(4, 10)] public int dropletsBrush;
     private int numDroplets;
     const int MAXDROPLETS = 8100;
-    [Range(1f, 0.1f)] public float timeStep;
+    [Range(2f, 0.1f)] public float timeStep;
     public float gravity;
     public float density;
     private float maxForce;
